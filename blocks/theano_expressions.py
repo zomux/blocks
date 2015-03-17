@@ -32,7 +32,7 @@ def hessian_times_vector(gradient, parameter, vector, r_op=False):
         The parameter with respect to which to take the gradient
     vector : :class:`~tensor.TensorVariable`
         The vector with which to multiply the Hessian
-    rop : bool, optional
+    r_op : bool, optional
         Whether to use :func:`~tensor.gradient.Rop` or not. Defaults to
         ``False``. Which solution is fastest normally needs to be
         determined by profiling.
