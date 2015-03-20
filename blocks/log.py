@@ -42,7 +42,7 @@ class DefaultOrderedDict(OrderedDict):
 
     def __reduce__(self):
         args = (self.default_factory,)
-        return self.__class__, args, None, None, self.iteritems()
+        return self.__class__, args, None, None, six.iteritems(self)
 
 
 class TrainingLog(Mapping):
