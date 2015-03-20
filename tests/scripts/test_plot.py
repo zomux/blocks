@@ -30,7 +30,7 @@ def some_experiments():
 
 def test_load_log():
     log = TrainingLog()
-    log[0].channel0 = 0
+    log[0]['channel0'] = 0
 
     # test simple TrainingLog pickles
     with tempfile.NamedTemporaryFile() as f:

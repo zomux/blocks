@@ -39,7 +39,7 @@ class DefaultOrderedDict(OrderedDict):
 
 
 class TrainingLog(Mapping):
-    """The log of training progress.
+    r"""The log of training progress.
 
     A training log stores the training timeline, statistics and other
     auxiliary information. Information is represented as nested dictionary
@@ -64,10 +64,16 @@ class TrainingLog(Mapping):
         results. Both of these backends will allow you to analyze results
         easily even during training, and will allow you to save multiple
         experiments to the same database.
+    status_exclude : list, optional
+        A list of status keys that should be excluded from iteration (and
+        hence, printing)
+    \*\*kwargs
+        Additional keyword arguments are passed to the log's backend e.g.
+        database configuration. See the relevant classes for details.
 
     """
-    def __init__(self, backend='default', **kwargs):
-        self.status = TrainingStatus()
+    def __init__(self, backend='default', status_exclude=None, **kwargs):
+        self.status = TrainingStatus(exclude=status_exclude)
         if backend == 'default':
             self._log = DefaultOrderedDict(dict)
         elif backend == 'mongo':
