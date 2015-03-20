@@ -5,6 +5,7 @@ from collections import Mapping, OrderedDict
 from numbers import Integral
 from operator import methodcaller, itemgetter
 
+import numpy
 import six
 from picklable_itertools import imap, groupby
 try:
@@ -79,11 +80,11 @@ class TrainingLog(Mapping):
         database configuration. See the relevant classes for details.
 
     """
-    def __init__(self, backend='default', status_exclude=None, **kwargs):
+    def __init__(self, backend='mongodb', status_exclude=None, **kwargs):
         self.status = TrainingStatus(exclude=status_exclude)
         if backend == 'default':
             self._log = DefaultOrderedDict(dict)
-        elif backend == 'mongo':
+        elif backend == 'mongodb':
             self._log = MongoTrainingLog(**kwargs)
         elif backend == 'sqlite':
             self._log = SQLiteLog(**kwargs)
@@ -154,6 +155,7 @@ class MongoTrainingLog(Mapping):
         if not PYMONGO_AVAILABLE:
             raise ImportError('pymongo not installed')
         self.client = MongoClient()
+        self.client.drop_database('blocks_log')
         self.db = self.client.blocks_log
         self.entries = self.db.entries
 
@@ -223,9 +225,13 @@ class MongoEntry(DatabaseEntry):
         if not hasattr(self, '_entry'):
             self._entry = self.log.entries.find_one({'_id': self.key},
                                                     projection={'_id': False})
+        if self._entry is None:
+            raise KeyError(self.key)
         return self._entry
 
     def __setitem__(self, key, value):
+        if isinstance(value, numpy.ndarray):
+            value = value.tolist()
         self.log.entries.update_one({'_id': self.key}, {'$set': {key: value}},
                                     upsert=True)
 

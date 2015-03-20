@@ -84,14 +84,13 @@ class MainLoop(object):
     """
     def __init__(self, algorithm, data_stream,
                  model=None, log=None, extensions=None):
-        if not log:
-            log = TrainingLog(
-                status_exclude=['training_started', 'epoch_started',
-                                'epoch_interrupt_received',
-                                'batch_interrupt_received',
-                                'received_first_batch', 'epoch_ends']
-            )
-        if not extensions:
+        if log is None:
+            log = TrainingLog()
+        log.status.exclude.extend(['training_started', 'epoch_started',
+                                   'epoch_interrupt_received',
+                                   'batch_interrupt_received',
+                                   'received_first_batch', 'epoch_ends'])
+        if extensions is None:
             extensions = []
 
         self.data_stream = data_stream
