@@ -363,7 +363,7 @@ class FinishAfter(SimpleExtension):
         super(FinishAfter, self).__init__(**kwargs)
 
     def do(self, which_callback, *args):
-        self.main_loop.log.current_row['training_finish_requested'] = True
+        self.main_loop.log.current_entry['training_finish_requested'] = True
 
 
 class Printing(SimpleExtension):
@@ -404,7 +404,7 @@ class Printing(SimpleExtension):
             self._print_attributes(log.status)
             print("Log records from the iteration {}:".format(
                 log.status['iterations_done']))
-            self._print_attributes(log.current_row)
+            self._print_attributes(log.current_entry)
         print()
 
 
@@ -558,33 +558,33 @@ class Timing(TrainingExtension):
     def before_epoch(self):
         self.epoch_started_at = self.clock_function()
         if self.log.status['epochs_done'] == 0:
-            self.log.current_row['initialization_took'] = (
+            self.log.current_entry['initialization_took'] = (
                 self.epoch_started_at - self.started_at)
 
     def before_batch(self, batch):
         self.batch_started_at = self.clock_function()
 
     def after_batch(self, batch):
-        self.log.current_row['iteration_took'] = (
+        self.log.current_entry['iteration_took'] = (
             self.clock_function() - self.batch_started_at)
-        self.log.current_row['total_took'] = (
+        self.log.current_entry['total_took'] = (
             self.log.status['total_before_interrupted'] +
             self.clock_function() - self.started_at)
 
     def after_epoch(self):
-        self.log.current_row['epoch_took'] = (
+        self.log.current_entry['epoch_took'] = (
             self.log.status['epoch_before_interrupted'] +
             self.clock_function() - self.epoch_started_at)
         self.log.status['epoch_before_interrupted'] = 0
 
     def after_training(self):
-        self.log.current_row['final_total_took'] = (
+        self.log.current_entry['final_total_took'] = (
             self.log.status['total_before_interrupted'] +
             self.clock_function() - self.started_at)
 
         # Save intermediate results to the log.status
         self.log.status['total_before_interrupted'] = (
-            self.log.current_row['final_total_took'])
+            self.log.current_entry['final_total_took'])
         if self.log.status['epoch_started']:
             epoch_ends = self.log.status['epoch_ends']
             self.log.status['epoch_before_interrupted'] = (

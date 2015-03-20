@@ -33,7 +33,7 @@ def test_training_data_monitoring():
     class TrueCostExtension(TrainingExtension):
 
         def before_batch(self, data):
-            self.main_loop.log.current_row['true_cost'] = (
+            self.main_loop.log.current_entry['true_cost'] = (
                 ((W.get_value() * data["features"]).sum() -
                  data["targets"]) ** 2)
 
@@ -52,7 +52,7 @@ def test_training_data_monitoring():
     main_loop.run()
 
     # Check monitoring of a shared varible
-    assert_allclose(main_loop.log.current_row['train1_V'], 7.0)
+    assert_allclose(main_loop.log.current_entry['train1_V'], 7.0)
 
     for i in range(n_batches):
         # The ground truth is written to the log before the batch is

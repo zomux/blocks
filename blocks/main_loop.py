@@ -171,7 +171,7 @@ class MainLoop(object):
                 while self._run_epoch():
                     pass
             except TrainingFinish:
-                self.log.current_row['training_finished'] = True
+                self.log.current_entry['training_finished'] = True
             except Exception as e:
                 self._restore_signal_handlers()
                 self.log.current_entry['got_exception'] = \
@@ -185,7 +185,7 @@ class MainLoop(object):
                                  error_in_error_handling_message)
                 reraise_as(e)
             finally:
-                if self.log.current_row['training_finished']:
+                if self.log.current_entry['training_finished']:
                     self._run_extensions('after_training')
                 self._restore_signal_handlers()
 
@@ -256,7 +256,7 @@ class MainLoop(object):
         # In case when keyboard interrupt is handled right at the end of
         # the iteration the corresponding log record can be found only in
         # the previous row.
-        if (self.log.current_row['training_finish_requested'] or
+        if (self.log.current_entry['training_finish_requested'] or
                 self.status['batch_interrupt_received']):
             raise TrainingFinish
         if (level == 'epoch' and
@@ -268,7 +268,7 @@ class MainLoop(object):
         logger.warning('Received epoch interrupt signal.' +
                        epoch_interrupt_message)
         signal.signal(signal.SIGINT, self._handle_batch_interrupt)
-        self.log.current_row['epoch_interrupt_received'] = True
+        self.log.current_entry['epoch_interrupt_received'] = True
         # Add a record to the status. Unlike the log record it will be
         # easy to access at later iterations.
         self.status['epoch_interrupt_received'] = True
@@ -278,7 +278,7 @@ class MainLoop(object):
         self._restore_signal_handlers()
         logger.warning('Received batch interrupt signal.' +
                        batch_interrupt_message)
-        self.log.current_row['batch_interrupt_received'] = True
+        self.log.current_entry['batch_interrupt_received'] = True
         # Add a record to the status. Unlike the log record it will be
         # easy to access at later iterations.
         self.status['batch_interrupt_received'] = True

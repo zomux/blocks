@@ -8,10 +8,10 @@ def test_training_log():
     log[0]['field'] = 45
     assert log[0]['field'] == 45
     assert log[1]['field'] is None
-    assert log.current_row['field'] == 45
+    assert log.current_entry['field'] == 45
     log.status['iterations_done'] += 1
     assert log.status['iterations_done'] == 1
-    assert log.previous_row['field'] == 45
+    assert log.previous_entry['field'] == 45
 
     # test iteration
     assert len(list(log)) == 2
