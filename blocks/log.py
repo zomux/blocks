@@ -4,7 +4,11 @@ from numbers import Integral
 from operator import methodcaller
 
 from picklable_itertools import imap
-from pymongo import ASCENDING, MongoClient
+try:
+    from pymongo import ASCENDING, MongoClient
+    PYMONGO_AVAILABLE = True
+except ImportError:
+    PYMONGO_AVAILABLE = False
 
 
 class DefaultOrderedDict(OrderedDict):
@@ -141,6 +145,8 @@ class TrainingStatus(Mapping):
 class MongoTrainingLog(Mapping):
     """A training log stored in a MongoDB database."""
     def __init__(self):
+        if not PYMONGO_AVAILABLE:
+            raise ImportError('pymongo not installed')
         self.client = MongoClient()
         self.db = self.client.blocks_log
         self.entries = self.db.entries
