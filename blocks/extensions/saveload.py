@@ -71,9 +71,8 @@ class Checkpoint(SimpleExtension):
             path = self.path
             if len(from_user):
                 path, = from_user
-            already_saved_to = self.main_loop.log.current_entry[SAVED_TO]
-            if not already_saved_to:
-                already_saved_to = ()
+            already_saved_to = self.main_loop.log.current_entry.get(SAVED_TO,
+                                                                    ())
             self.main_loop.log.current_entry[SAVED_TO] = (
                 already_saved_to + (path,))
             secure_pickle_dump(self.main_loop, path)

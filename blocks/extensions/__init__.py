@@ -459,7 +459,7 @@ class ProgressBar(TrainingExtension):
 
         """
         iter_per_epoch = self.get_iter_per_epoch()
-        epochs_done = self.main_loop.log._status.epochs_done
+        epochs_done = self.main_loop.log.status['epochs_done']
 
         if iter_per_epoch is None:
             widgets = ["Epoch {}, step ".format(epochs_done),
