@@ -256,11 +256,11 @@ class MainLoop(object):
         # In case when keyboard interrupt is handled right at the end of
         # the iteration the corresponding log record can be found only in
         # the previous row.
-        if (self.log.current_entry['training_finish_requested'] or
-                self.status['batch_interrupt_received']):
+        if (self.log.current_entry.get('training_finish_requested', False) or
+                self.status.get('batch_interrupt_received', False)):
             raise TrainingFinish
         if (level == 'epoch' and
-                self.status['epoch_interrupt_received']):
+                self.status.get('epoch_interrupt_received', False)):
             raise TrainingFinish
 
     def _handle_epoch_interrupt(self, signal_number, frame):

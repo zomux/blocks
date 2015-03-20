@@ -1,9 +1,12 @@
 """The event-based main loop of Blocks."""
+import sqlite3
+from abc import ABCMeta, abstractproperty
 from collections import Mapping, OrderedDict
 from numbers import Integral
-from operator import methodcaller
+from operator import methodcaller, itemgetter
 
-from picklable_itertools import imap
+import six
+from picklable_itertools import imap, groupby
 try:
     from pymongo import ASCENDING, MongoClient
     PYMONGO_AVAILABLE = True
@@ -82,6 +85,8 @@ class TrainingLog(Mapping):
             self._log = DefaultOrderedDict(dict)
         elif backend == 'mongo':
             self._log = MongoTrainingLog(**kwargs)
+        elif backend == 'sqlite':
+            self._log = SQLiteLog(**kwargs)
         else:
             raise ValueError('unknown backend')
 
@@ -163,7 +168,39 @@ class MongoTrainingLog(Mapping):
         return self.entries.count()
 
 
-class MongoEntry(Mapping):
+@six.add_metaclass(ABCMeta)
+class DatabaseEntry(Mapping):
+    """A helper class for log entries stored in a database.
+
+    Database entries should only be read when explicitly accessed, that is,
+    we don't want ``log[0]['foo'] = 'bar'`` to result in ``log[0]`` being
+    read from the database. This class defines some helper functions for a
+    log entry that behaves this way.
+
+    """
+    def __init__(self, log, key):
+        self.log = log
+        self.key = key
+
+    def __repr__(self):
+        return repr(self.entry)
+
+    @abstractproperty
+    def entry(self):
+        """Should return the entry as a dictionary when requested."""
+        pass
+
+    def __getitem__(self, key):
+        return self.entry[key]
+
+    def __iter__(self):
+        return iter(self.entry)
+
+    def __len__(self):
+        return len(self.entry)
+
+
+class MongoEntry(DatabaseEntry):
     """A single entry in the MongoDB-based log.
 
     Parameters
@@ -180,10 +217,6 @@ class MongoEntry(Mapping):
     won't retrieve the old values.
 
     """
-    def __init__(self, log, key):
-        self.log = log
-        self.key = key
-
     @property
     def entry(self):
         if not hasattr(self, '_entry'):
@@ -191,15 +224,49 @@ class MongoEntry(Mapping):
                                                     projection={'_id': False})
         return self._entry
 
-    def __getitem__(self, key):
-        return self.entry[key]
-
-    def __iter__(self):
-        return iter(self.entry)
-
-    def __len__(self):
-        return len(self.entry)
-
     def __setitem__(self, key, value):
         self.log.entries.update_one({'_id': self.key}, {'$set': {key: value}},
                                     upsert=True)
+
+
+def _grouper_to_dict(grouper):
+    """Converts an iterable of SQLite triplet log entries into a dict."""
+    _, entries = grouper
+    return dict([(key, value) for iteration, key, value in entries])
+
+
+class SQLiteLog(Mapping):
+    def __init__(self):
+        self.connection = sqlite3.connect('blocks.db')
+        self.cursor = self.connection.cursor()
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS log '
+                            '(iteration INT, key TEXT, value NULL)')
+        self.connection.commit()
+
+    def __getitem__(self, key):
+        return SQLiteEntry(self, key)
+
+    def __iter__(self):
+        entries = self.cursor.execute('SELECT * FROM log')
+        return imap(_grouper_to_dict, groupby(entries, key=itemgetter(0)))
+
+    def __len__(self):
+        count, = self.cursor.execute('SELECT COUNT(DISTINCT iteration) '
+                                     'FROM LOG').fetchone()
+        return count
+
+
+class SQLiteEntry(DatabaseEntry):
+    @property
+    def entry(self):
+        if not hasattr(self, '_entry'):
+            entry = self.log.cursor.execute(
+                'SELECT * FROM log WHERE iteration = ?', (self.key,))
+            self._entry = dict([(key, value)
+                                for iteration, key, value in entry])
+        return self._entry
+
+    def __setitem__(self, key, value):
+        self.log.cursor.execute('INSERT INTO log VALUES (?, ?, ?)',
+                                (self.key, key, value))
+        self.log.connection.commit()
