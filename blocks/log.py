@@ -131,7 +131,8 @@ class TrainingStatus(Mapping):
 
     """
     def __init__(self, exclude=None):
-        self._status = {'iterations_done': 0, 'epochs_done': 0}
+        self._status = {'iterations_done': 0, 'epochs_done': 0,
+                        'epoch_ends': []}
         self.exclude = [] if exclude is None else exclude
 
     def __getitem__(self, key):
