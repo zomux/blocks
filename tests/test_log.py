@@ -7,7 +7,6 @@ def test_training_log():
     # test basic writing capabilities
     log[0]['field'] = 45
     assert log[0]['field'] == 45
-    assert log[1]['field'] is None
     assert log.current_entry['field'] == 45
     log.status['iterations_done'] += 1
     assert log.status['iterations_done'] == 1

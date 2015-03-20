@@ -50,7 +50,7 @@ def test_timing():
 
     # Start epoch 2
     timing.before_epoch()
-    assert ml.log[2]['initialization_took'] is None
+    assert 'initialization_took' not in ml.log[2]
 
     # Batch 3
     timing.before_batch(None)

@@ -185,7 +185,7 @@ class MainLoop(object):
                                  error_in_error_handling_message)
                 reraise_as(e)
             finally:
-                if self.log.current_entry['training_finished']:
+                if self.log.current_entry.get('training_finished', False):
                     self._run_extensions('after_training')
                 self._restore_signal_handlers()
 
