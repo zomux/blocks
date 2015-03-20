@@ -13,4 +13,4 @@ def test_training_log():
     assert log.previous_entry['field'] == 45
 
     # test iteration
-    assert len(list(log)) == 2
+    assert len(list(log)) == 1

@@ -49,7 +49,7 @@ def test_load_log():
         f.flush()
 
         log2 = plot.load_log(f.name)
-        assert log2[0].channel0 == 0
+        assert log2[0]['channel0'] == 0
 
 
 @silence_printing
