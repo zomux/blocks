@@ -101,13 +101,13 @@ def test_track_the_best():
     main_loop.log.current_entry['cost'] = 6
     extension.dispatch('after_batch')
     assert main_loop.status['best_cost'] == 5
-    assert main_loop.log.current_entry['cost_best_so_far'] is None
+    assert 'cost_best_so_far' not in main_loop.log.current_entry
 
     main_loop.status['iterations_done'] += 1
     main_loop.log.current_entry['cost'] = 5
     extension.dispatch('after_batch')
     assert main_loop.status['best_cost'] == 5
-    assert main_loop.log.current_entry['cost_best_so_far'] is None
+    assert 'cost_best_so_far' not in main_loop.log.current_entry
 
     main_loop.status['iterations_done'] += 1
     main_loop.log.current_entry['cost'] = 4
