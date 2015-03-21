@@ -149,8 +149,8 @@ class TrainingStatus(Mapping):
     """The status of the training process.
 
     By default this contains two keys: `iterations_done` and `epochs_done`.
-    This object behaves like a dictionary, except that the keys in `exclude`
-    are ignored in many cases.
+    This object behaves like a dictionary, except that the keys in
+    `exclude` are ignored in many cases.
 
     Parameters
     ----------
