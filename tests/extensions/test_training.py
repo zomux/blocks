@@ -139,9 +139,9 @@ def test_save_the_best():
                             (dst_best.name,))])
         main_loop.run()
 
-        assert main_loop.log[4]['saved_to'] == (dst.name, dst_best.name)
-        assert main_loop.log[5]['saved_to'] == (dst.name, dst_best.name)
-        assert main_loop.log[6]['saved_to'] == (dst.name,)
+        assert main_loop.log[4]['saved_to'] == [dst.name, dst_best.name]
+        assert main_loop.log[5]['saved_to'] == [dst.name, dst_best.name]
+        assert main_loop.log[6]['saved_to'] == [dst.name]
         with open(dst_best.name, 'rb') as src:
             assert cPickle.load(src).log.status['iterations_done'] == 5
         root, ext = os.path.splitext(dst_best.name)

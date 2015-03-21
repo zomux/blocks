@@ -1,15 +1,19 @@
 """The event-based main loop of Blocks."""
+import binascii
+import datetime
+import os
 import sqlite3
 from abc import ABCMeta, abstractproperty
 from collections import Mapping, OrderedDict
 from numbers import Integral
-from operator import methodcaller, itemgetter
+from operator import itemgetter
 
 import numpy
 import six
 from picklable_itertools import imap, groupby
 try:
-    from pymongo import ASCENDING, MongoClient
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
     PYMONGO_AVAILABLE = True
 except ImportError:
     PYMONGO_AVAILABLE = False
@@ -60,7 +64,11 @@ class TrainingLog(Mapping):
 
     Parameters
     ----------
-    backend : {'default', 'mongo', 'sqlite'}
+    hash_ : str, optional
+        A hash that identifies this experiment. If given and a database
+        backend is used, it will try to reload the log. If not, a new hash
+        will be created for this log.
+    backend : {'default', 'mongodb', 'sqlite'}, optional
         The log can be stored in a variety of backends. The `default`
         backend stores the values in a nested dictionary (a
         :class:`DefaultOrderedDict` to be precise). This is a simple and
@@ -72,20 +80,46 @@ class TrainingLog(Mapping):
         results. Both of these backends will allow you to analyze results
         easily even during training, and will allow you to save multiple
         experiments to the same database.
-    status_exclude : list, optional
-        A list of status keys that should be excluded from iteration (and
-        hence, printing)
     \*\*kwargs
         Additional keyword arguments are passed to the log's backend e.g.
         database configuration. See the relevant classes for details.
 
+    Attributes
+    ----------
+    info : dict
+        A dictionary with information (metadata) about this experiment,
+        such as a description of the model, the package versions used, etc.
+        It also contains the unique hash that identifies experiments (e.g.
+        in the database).
+    status : :class:`TrainingStatus`
+        This dictionary contains information on the current status of the
+        training e.g. how many iterations/epochs have been completed,
+        whether training has finished, if errors occurred, etc.
+
+    Notes
+    -----
+    Currently logs assume that entries are added in order.
+
     """
-    def __init__(self, backend='mongodb', status_exclude=None, **kwargs):
-        self.status = TrainingStatus(exclude=status_exclude)
+    def __init__(self, hash_=None, backend='mongodb', **kwargs):
+        self.status = TrainingStatus()
+        if hash_ is None:
+            hash_ = binascii.hexlify(os.urandom(12)).decode()
+        else:
+            is_valid_hash = True
+            try:
+                hash_bytes = binascii.unhexlify(hash_)
+            except TypeError:
+                is_valid_hash = False
+            if len(hash_bytes) != 12:
+                is_valid_hash = False
+            if not is_valid_hash:
+                raise ValueError('invalid hash')
+        self.info = {'hash': hash_}
         if backend == 'default':
             self._log = DefaultOrderedDict(dict)
         elif backend == 'mongodb':
-            self._log = MongoTrainingLog(**kwargs)
+            self._log = MongoTrainingLog(log=self, **kwargs)
         elif backend == 'sqlite':
             self._log = SQLiteLog(**kwargs)
         else:
@@ -115,6 +149,8 @@ class TrainingStatus(Mapping):
     """The status of the training process.
 
     By default this contains two keys: `iterations_done` and `epochs_done`.
+    This object behaves like a dictionary, except that the keys in `exclude`
+    are ignored in many cases.
 
     Parameters
     ----------
@@ -146,29 +182,59 @@ class TrainingStatus(Mapping):
         return (key for key in self._status if key not in self.exclude)
 
     def __len__(self):
-        return len(self._status)
+        return len(iter(self))
 
 
-class MongoTrainingLog(Mapping):
+class TrainingLogBackend(Mapping):
+    def __init__(self, log):
+        self.log = log
+
+
+class MongoTrainingLog(TrainingLogBackend):
     """A training log stored in a MongoDB database."""
-    def __init__(self):
+    def __init__(self, database='blocks', host='localhost', port=27017,
+                 *args, **kwargs):
         if not PYMONGO_AVAILABLE:
             raise ImportError('pymongo not installed')
-        self.client = MongoClient()
-        self.client.drop_database('blocks_log')
-        self.db = self.client.blocks_log
-        self.entries = self.db.entries
+        super(MongoTrainingLog, self).__init__(*args, **kwargs)
+
+        self.host = host
+        self.port = port
+        self.database = database
+        self.mongo_id = ObjectId(self.log.info['hash'])
+        self._connect()
+
+    def _connect(self):
+        self.client = MongoClient(host=self.host, port=self.port)
+        self.db = self.client[self.database]
+        self.experiments = self.db['experiments']
+        self.entries = self.db['entries']
+        # Create the experiment if it does not exist already
+        self.experiments.update_one(
+            {'_id': self.mongo_id},
+            {'$setOnInsert': {'created': datetime.datetime.utcnow()}},
+            upsert=True)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        for attr in ['client', 'db', 'entries', 'experiments']:
+            del state[attr]
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._connect()
 
     def __getitem__(self, key):
         return MongoEntry(self, key)
 
     def __iter__(self):
-        return imap(methodcaller('pop', '_id'),
-                    self.entries.find(projection=['_id'],
-                                      sort=[('_id', ASCENDING)]))
+        return imap(itemgetter('iteration'),
+                    self.entries.find({'experiment': self.mongo_id},
+                                      projection=['iteration']))
 
     def __len__(self):
-        return self.entries.count()
+        return self.entries.count({'experiment': self.mongo_id})
 
 
 @six.add_metaclass(ABCMeta)
@@ -223,17 +289,20 @@ class MongoEntry(DatabaseEntry):
     @property
     def entry(self):
         if not hasattr(self, '_entry'):
-            self._entry = self.log.entries.find_one({'_id': self.key},
-                                                    projection={'_id': False})
-        if self._entry is None:
-            raise KeyError(self.key)
+            self._entry = self.log.entries.find_one(
+                {'experiment': self.log.mongo_id, 'iteration': self.key},
+                projection={'_id': False, 'experiment': False,
+                            'iteration': False})
+            if self._entry is None:
+                self._entry = {}
         return self._entry
 
     def __setitem__(self, key, value):
         if isinstance(value, numpy.ndarray):
             value = value.tolist()
-        self.log.entries.update_one({'_id': self.key}, {'$set': {key: value}},
-                                    upsert=True)
+        self.log.entries.update_one({'experiment': self.log.mongo_id,
+                                     'iteration': self.key},
+                                    {'$set': {key: value}}, upsert=True)
 
 
 def _grouper_to_dict(grouper):
