@@ -549,8 +549,6 @@ class Timing(TrainingExtension):
 
     def before_training(self):
         self.started_at = self.clock_function()
-        self.log.status.exclude.extend(['epoch_before_interrupted',
-                                        'total_before_interrupted'])
         self.log.status['epoch_before_interrupted'] = 0
         self.log.status['total_before_interrupted'] = 0
 
@@ -585,7 +583,8 @@ class Timing(TrainingExtension):
         self.log.status['total_before_interrupted'] = (
             self.log.current_entry['final_total_took'])
         if self.log.status['epoch_started']:
-            epoch_ends = self.log.status['epoch_ends']
+            epoch_ends = [key for key, value in self.log.items()
+                          if 'epoch_ended' in value]
             self.log.status['epoch_before_interrupted'] = (
                 self.clock_function() - 0
                 if not epoch_ends else self.log[epoch_ends[-1]]['total_took'])

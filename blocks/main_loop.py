@@ -86,10 +86,6 @@ class MainLoop(object):
                  model=None, log=None, extensions=None):
         if log is None:
             log = TrainingLog()
-        log.status.exclude.extend(['training_started', 'epoch_started',
-                                   'epoch_interrupt_received',
-                                   'batch_interrupt_received',
-                                   'received_first_batch', 'epoch_ends'])
         if extensions is None:
             extensions = []
 
@@ -218,7 +214,7 @@ class MainLoop(object):
             pass
         self.status['epoch_started'] = False
         self.status['epochs_done'] += 1
-        self.status['epoch_ends'].append(self.status['iterations_done'])
+        self.log.current_entry['epoch_ended'] = True
         self._run_extensions('after_epoch')
         self._check_finish_training('epoch')
         return True
