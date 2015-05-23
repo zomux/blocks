@@ -33,7 +33,7 @@ script:
   - pip install . -r requirements.txt # Tests setup.py
   - curl -O https://raw.githubusercontent.com/bartvm/fuel/master/.travis-data.sh | bash -s -- mnist
   - # Must export environment variable so that the subprocess is aware of it
-  - export THEANO_FLAGS=floatX=$FLOATX,optimizer=fast_compile
+  - export THEANO_FLAGS=floatX=$FLOATX
   - export FUEL_FLOATX=$FLOATX
   - export BLOCKS_PROFILE=true
   - # Running nose2 within coverage makes imports count towards coverage
@@ -41,6 +41,7 @@ script:
   - |
       if [[ $TESTS == 'blocks' ]]; then
         coverage run -p --source=blocks -m nose2.__main__ -v doctests
+        export THEANO_FLAGS=$THEANO_FLAGS,mode=FAST_COMPILE
         coverage run -p --source=blocks -m nose2.__main__ -v tests
       fi
   - |
